@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Algorithm Analysis and Design student grade lookup portal">
+  <title>Student Grade Lookup | Algorithm Analysis and Design</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="page-shell">
+    <header class="brand">
+      <div class="brand-mark" aria-hidden="true">E</div>
+      <div>
+        <p class="eyebrow">Egyptian E-Learning University</p>
+        <h1>Algorithm Analysis and Design</h1>
+        <p class="subtitle">Student Grade Lookup Portal</p>
+      </div>
+    </header>
+
+    <section class="lookup-card" aria-labelledby="lookup-title">
+      <div class="card-heading">
+        <span class="section-icon" aria-hidden="true">✓</span>
+        <div>
+          <h2 id="lookup-title">View your grades</h2>
+          <p>Enter your Student ID to retrieve your published results.</p>
+        </div>
+      </div>
+
+      <form id="lookup-form" novalidate>
+        <label for="student-id">Student ID</label>
+        <div class="input-row">
+          <input id="student-id" name="studentId" type="text" inputmode="text"
+                 autocomplete="off" autocapitalize="off" spellcheck="false"
+                 placeholder="e.g. 00123456" required maxlength="64">
+          <button id="show-button" type="submit">Show Grades</button>
+        </div>
+        <p class="hint">Enter your ID exactly as provided by the university.</p>
+      </form>
+
+      <div id="status" class="status" role="status" aria-live="polite" hidden></div>
+      <section id="results" class="results" aria-live="polite" hidden></section>
+      <p class="privacy-note"><strong>Privacy notice:</strong> this portal uses Student ID only. Anyone who knows or guesses an ID may be able to view that student's results. Do not use this design for confidential results without adding authentication.</p>
+    </section>
+
+    <footer>
+      <p>For grade-related questions, contact the course teaching assistant.</p>
+    </footer>
+  </main>
+  <script src="script.js"></script>
+</body>
+</html>
