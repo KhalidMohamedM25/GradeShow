@@ -1,8 +1,12 @@
 /*
- * Configure API_URL after deploying backend/Code.gs as a Google Apps Script web app.
- * Do not put a private grade file or Google credentials in this frontend repository.
+ * Set API_URL to the deployed Google Apps Script Web App URL ending in /exec.
+ * This frontend uses JSONP to avoid the common cross-origin fetch/CORS issue
+ * with Apps Script ContentService redirects.
+ *
+ * IMPORTANT: JSONP is suitable only for public, non-sensitive responses.
+ * Student-ID-only lookup does not authenticate students.
  */
-const API_URL = "https://script.google.com/macros/s/AKfycbzw88KKh2VppH9jrNQS732Pm8RBrmrudpYzyd5oRiEY90V_7423vm6W_emLWvqpxAg/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbzNvxpIgpjVn-soS-UlkT4D75aJUcGfHbZ85m2nNWfI0bID_Fnwvi8ueXz2QCuk5spK/exec";
 
 const form = document.getElementById("lookup-form");
 const studentIdInput = document.getElementById("student-id");
@@ -22,6 +26,7 @@ form.addEventListener("submit", async (event) => {
     studentIdInput.focus();
     return;
   }
+
   if (API_URL.startsWith("PASTE_")) {
     showStatus("The grade service has not been configured yet. Please contact the course administrator.", "error");
     return;
@@ -34,13 +39,15 @@ form.addEventListener("submit", async (event) => {
   try {
     const url = new URL(API_URL);
     url.searchParams.set("studentId", studentId);
-    const response = await fetch(url.toString(), { method: "GET", redirect: "follow" });
-    if (!response.ok) throw new Error("The grade service returned an error.");
-    const payload = await response.json();
+    const payload = await lookupWithJsonp(url);
 
     if (!payload || payload.ok !== true) {
       if (payload && payload.error === "NOT_FOUND") {
         showStatus("No grades found for this Student ID. Check the ID and try again.", "error");
+      } else if (payload && payload.error === "DUPLICATE_ID") {
+        showStatus("More than one record uses this Student ID. Please contact the course administrator.", "error");
+      } else if (payload && payload.error === "INVALID_ID") {
+        showStatus("Please enter a valid Student ID.", "error");
       } else {
         showStatus("The grade service could not complete the request. Please try again later.", "error");
       }
@@ -51,12 +58,61 @@ form.addEventListener("submit", async (event) => {
     statusBox.hidden = true;
     resultsBox.hidden = false;
   } catch (error) {
-    showStatus("Unable to retrieve grades right now. Please check your connection and try again.", "error");
+    console.error("Grade lookup failed:", error);
+    showStatus("Unable to retrieve grades right now. Check the Apps Script deployment URL and access settings, then try again.", "error");
   } finally {
     showButton.disabled = false;
     showButton.textContent = "Show Grades";
   }
 });
+
+function lookupWithJsonp(url) {
+  return new Promise((resolve, reject) => {
+    const callbackName =
+      "gradeLookup_" + Date.now() + "_" +
+      Math.random().toString(36).slice(2);
+
+    const script = document.createElement("script");
+    let timeoutId = null;
+    let settled = false;
+
+    const cleanup = () => {
+      if (timeoutId !== null) window.clearTimeout(timeoutId);
+      try { delete window[callbackName]; } catch (_) { window[callbackName] = undefined; }
+      script.onerror = null;
+      script.remove();
+    };
+
+    window[callbackName] = (data) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      resolve(data);
+    };
+
+    url.searchParams.set("callback", callbackName);
+    // Cache-buster helps ensure a fresh response after grade updates.
+    url.searchParams.set("_", String(Date.now()));
+    script.async = true;
+    script.src = url.toString();
+
+    script.onerror = () => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      reject(new Error("The grade service script could not be loaded."));
+    };
+
+    timeoutId = window.setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      reject(new Error("The grade service request timed out."));
+    }, 20000);
+
+    document.head.appendChild(script);
+  });
+}
 
 function showStatus(message, type) {
   statusBox.textContent = message;
@@ -74,6 +130,7 @@ function addTextElement(parent, tag, className, text) {
 
 function renderResults(student, assessments, updatedAt) {
   resultsBox.replaceChildren();
+
   const head = document.createElement("div");
   head.className = "results-head";
   const identity = document.createElement("div");
@@ -87,22 +144,26 @@ function renderResults(student, assessments, updatedAt) {
   wrap.className = "grade-table-wrap";
   const table = document.createElement("table");
   const thead = document.createElement("thead");
-  const hr = document.createElement("tr");
-  addTextElement(hr, "th", "", "Assessment");
-  addTextElement(hr, "th", "", "Grade");
-  thead.appendChild(hr);
+  const headerRow = document.createElement("tr");
+  addTextElement(headerRow, "th", "", "Assessment");
+  addTextElement(headerRow, "th", "", "Grade");
+  thead.appendChild(headerRow);
   table.appendChild(thead);
 
   const tbody = document.createElement("tbody");
   assessments.forEach(item => {
     const row = document.createElement("tr");
     addTextElement(row, "td", "", item.name);
-    const value = item.published === false || item.value === null || item.value === undefined || item.value === ""
-      ? "Not published" : String(item.value);
-    addTextElement(row, "td", "", item.max !== null && item.max !== undefined && item.max !== "" && value !== "Not published"
-      ? `${value} / ${item.max}` : value);
+    const isMissing = item.published === false || item.value === null || item.value === undefined || item.value === "";
+    const gradeText = isMissing
+      ? "Not published"
+      : (item.max !== null && item.max !== undefined && item.max !== ""
+          ? `${item.value} / ${item.max}`
+          : String(item.value));
+    addTextElement(row, "td", "", gradeText);
     tbody.appendChild(row);
   });
+
   if (student.total !== null && student.total !== undefined && student.total !== "") {
     const row = document.createElement("tr");
     row.className = "total-row";
@@ -112,6 +173,7 @@ function renderResults(student, assessments, updatedAt) {
     addTextElement(row, "td", "", totalText);
     tbody.appendChild(row);
   }
+
   if (student.percentage !== null && student.percentage !== undefined && student.percentage !== "") {
     const row = document.createElement("tr");
     row.className = "total-row";
@@ -119,6 +181,7 @@ function renderResults(student, assessments, updatedAt) {
     addTextElement(row, "td", "", `${student.percentage}%`);
     tbody.appendChild(row);
   }
+
   table.appendChild(tbody);
   wrap.appendChild(table);
   resultsBox.appendChild(wrap);
@@ -132,6 +195,7 @@ function renderResults(student, assessments, updatedAt) {
   }
 
   if (updatedAt) addTextElement(resultsBox, "p", "updated", `Grade data updated: ${updatedAt}`);
+
   const printButton = document.createElement("button");
   printButton.type = "button";
   printButton.textContent = "Print grade report";
