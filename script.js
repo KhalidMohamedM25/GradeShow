@@ -6,7 +6,7 @@
  * IMPORTANT: JSONP is suitable only for public, non-sensitive responses.
  * Student-ID-only lookup does not authenticate students.
  */
-const API_URL = "https://script.google.com/macros/s/AKfycbzNvxpIgpjVn-soS-UlkT4D75aJUcGfHbZ85m2nNWfI0bID_Fnwvi8ueXz2QCuk5spK/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbyNlNU95SahcWHja9Y_ooL1OfhKJlM4U_wrBMPWG3g17WRasjWb14w2SkCNamZ3a7ju/exec";
 
 const form = document.getElementById("lookup-form");
 const studentIdInput = document.getElementById("student-id");
@@ -170,7 +170,7 @@ function renderResults(student, assessments, updatedAt) {
     tbody.appendChild(row);
   } else {
     const row = document.createElement("tr");
-    addTextElement(row, "td", "", "Quiz");
+    addTextElement(row, "td", "", "Quiz (1) Grade");
     addTextElement(row, "td", "", "Not found");
     tbody.appendChild(row);
   }
