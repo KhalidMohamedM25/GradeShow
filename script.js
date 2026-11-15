@@ -34,7 +34,7 @@ form.addEventListener("submit", async (event) => {
 
   showButton.disabled = true;
   showButton.textContent = "Searching…";
-  showStatus("Retrieving your published grades…", "info");
+  showStatus("Retrieving your published quiz grade…", "info");
 
   try {
     const url = new URL(API_URL);
@@ -43,7 +43,7 @@ form.addEventListener("submit", async (event) => {
 
     if (!payload || payload.ok !== true) {
       if (payload && payload.error === "NOT_FOUND") {
-        showStatus("No grades found for this Student ID. Check the ID and try again.", "error");
+        showStatus("No records found for this Student ID. Check the ID and try again.", "error");
       } else if (payload && payload.error === "DUPLICATE_ID") {
         showStatus("More than one record uses this Student ID. Please contact the course administrator.", "error");
       } else if (payload && payload.error === "INVALID_ID") {
@@ -62,7 +62,7 @@ form.addEventListener("submit", async (event) => {
     showStatus("Unable to retrieve grades right now. Check the Apps Script deployment URL and access settings, then try again.", "error");
   } finally {
     showButton.disabled = false;
-    showButton.textContent = "Show Grades";
+    showButton.textContent = "Show Quiz Grade";
   }
 });
 
@@ -134,11 +134,16 @@ function renderResults(student, assessments, updatedAt) {
   const head = document.createElement("div");
   head.className = "results-head";
   const identity = document.createElement("div");
-  addTextElement(identity, "h2", "", "Your published grades");
+  addTextElement(identity, "h2", "", "Your Quiz Grade");
   addTextElement(identity, "p", "student-meta", `${student.name || "Student"} · ID: ${student.id}`);
   head.appendChild(identity);
   addTextElement(head, "span", "badge", "Record found");
   resultsBox.appendChild(head);
+
+  // Filter assessments to find the quiz item only
+  const quizItem = assessments.find(item => 
+    item.name && item.name.toLowerCase().includes("quiz")
+  );
 
   const wrap = document.createElement("div");
   wrap.className = "grade-table-wrap";
@@ -151,48 +156,28 @@ function renderResults(student, assessments, updatedAt) {
   table.appendChild(thead);
 
   const tbody = document.createElement("tbody");
-  assessments.forEach(item => {
+  
+  if (quizItem) {
     const row = document.createElement("tr");
-    addTextElement(row, "td", "", item.name);
-    const isMissing = item.published === false || item.value === null || item.value === undefined || item.value === "";
+    addTextElement(row, "td", "", quizItem.name);
+    const isMissing = quizItem.published === false || quizItem.value === null || quizItem.value === undefined || quizItem.value === "";
     const gradeText = isMissing
       ? "Not published"
-      : (item.max !== null && item.max !== undefined && item.max !== ""
-          ? `${item.value} / ${item.max}`
-          : String(item.value));
+      : (quizItem.max !== null && quizItem.max !== undefined && quizItem.max !== ""
+          ? `${quizItem.value} / ${quizItem.max}`
+          : String(quizItem.value));
     addTextElement(row, "td", "", gradeText);
     tbody.appendChild(row);
-  });
-
-  if (student.total !== null && student.total !== undefined && student.total !== "") {
+  } else {
     const row = document.createElement("tr");
-    row.className = "total-row";
-    addTextElement(row, "td", "", "Total");
-    const totalText = student.maxTotal !== null && student.maxTotal !== undefined && student.maxTotal !== ""
-      ? `${student.total} / ${student.maxTotal}` : String(student.total);
-    addTextElement(row, "td", "", totalText);
-    tbody.appendChild(row);
-  }
-
-  if (student.percentage !== null && student.percentage !== undefined && student.percentage !== "") {
-    const row = document.createElement("tr");
-    row.className = "total-row";
-    addTextElement(row, "td", "", "Percentage");
-    addTextElement(row, "td", "", `${student.percentage}%`);
+    addTextElement(row, "td", "", "Quiz");
+    addTextElement(row, "td", "", "Not found");
     tbody.appendChild(row);
   }
 
   table.appendChild(tbody);
   wrap.appendChild(table);
   resultsBox.appendChild(wrap);
-
-  if (student.feedback) {
-    const feedback = document.createElement("div");
-    feedback.className = "feedback";
-    addTextElement(feedback, "h3", "", "Instructor feedback");
-    addTextElement(feedback, "p", "", student.feedback);
-    resultsBox.appendChild(feedback);
-  }
 
   if (updatedAt) addTextElement(resultsBox, "p", "updated", `Grade data updated: ${updatedAt}`);
 
