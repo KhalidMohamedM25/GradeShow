@@ -6,7 +6,7 @@
  * IMPORTANT: JSONP is suitable only for public, non-sensitive responses.
  * Student-ID-only lookup does not authenticate students.
  */
-const API_URL = "https://script.google.com/macros/s/AKfycbyNlNU95SahcWHja9Y_ooL1OfhKJlM4U_wrBMPWG3g17WRasjWb14w2SkCNamZ3a7ju/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbyBu7Mz0l5BWVgYMD9ip2G5awX1KufoEQMiw8xUL9lhLRVnt_XJCO_VE5kKNqngbA57/exec";
 
 const form = document.getElementById("lookup-form");
 const studentIdInput = document.getElementById("student-id");
